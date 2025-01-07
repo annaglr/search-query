@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import typing
-from abc import ABC
 
 from search_query.constants import Fields
 from search_query.constants import Operators
@@ -34,11 +33,10 @@ class SearchField:
         return self.value
 
 
-class Query(ABC):
+class Query:
     """Query class."""
 
     # pylint: disable=too-many-arguments
-    # @abstractmethod
     def __init__(
         self,
         value: str = "NOT_INITIALIZED",
@@ -81,13 +79,13 @@ class Query(ABC):
     def selects(self, *, record_dict: dict) -> bool:
         """Indicates whether the query selects a given record."""
 
-        if self.value == "NOT":
+        if self.value == Operators.NOT:
             return not self.children[0].selects(record_dict=record_dict)
 
-        if self.value == "AND":
+        if self.value == Operators.AND:
             return all(x.selects(record_dict=record_dict) for x in self.children)
 
-        if self.value == "OR":
+        if self.value == Operators.OR:
             return any(x.selects(record_dict=record_dict) for x in self.children)
 
         assert not self.operator
@@ -112,6 +110,14 @@ class Query(ABC):
 
         # Match exact word
         return value.lower() in field_value
+
+    def is_operator(self) -> bool:
+        """Check whether the SearchQuery is an operator."""
+        return self.operator
+
+    def is_term(self) -> bool:
+        """Check whether the SearchQuery is a term."""
+        return not self.is_operator()
 
     def get_nr_leaves(self) -> int:
         """Returns the number of leaves in the query tree"""
