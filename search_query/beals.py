@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import logging
 import typing
+import re
 
 from colrev.packages.crossref.src import crossref_api
 from colrev.record.record import Record
@@ -170,7 +171,9 @@ class BEALSCrossref:
 
         for record in record_list:
             if record.data.get("title"):
-                if term.lower() in record.data.get("title").lower():
+                if re.search(f"(^|[^a-zA-Z]){term.lower()}([^a-zA-Z]|$)", 
+                             record.data.get("title").lower(),
+                             re.IGNORECASE) is not None:
                     rec_list.append(record)
 
         return rec_list
