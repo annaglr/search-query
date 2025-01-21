@@ -70,7 +70,15 @@ class BEALSCrossref:
         """Build query url."""
 
         query = query.replace(" ", "+")
-        url = self._api_url + "works?" + "query.bibliographic=%22" + query + "%22"
+        url = self._api_url + "works?" + "query.title=%22" + query + "%22"
+
+        # Add time range filter
+        # filter_date = "filter=from-pub-date:2015-01-01"
+        # url = self._api_url + "works?" + "query.title=%22" + query + "%22" + "&" + filter_date
+
+        # Add journal filter
+        # filter = "filter=issn:0167-9236,issn:0960-085X"
+        # url = self._api_url + "works?" + filter + "&" + "query.title=%22" + query + "%22"
 
         return url
 
@@ -229,36 +237,26 @@ class BEALSCrossref:
 
 
 if __name__ == "__main__":
-    search_term1 = OrQuery(["disruptive", "transformation"], search_field="ti")
-    search_term2 = OrQuery(
-        ["technologies", "technological", "technology", "innovation", "innovations"],
-        search_field="ti",
-    )
+    search_term1 = OrQuery(["strategy", "strategic"], search_field="ti")
+    search_term2 = OrQuery(["digital", "technology"], search_field="ti")
     search_query = AndQuery([search_term1, search_term2], search_field="ti")
 
-
-    qu10 = OrQuery(["strategy", "strategic"], search_field="ti")
-    q10 = OrQuery(["digital", "technology"], search_field="ti")
-    query1 = AndQuery([qu10, q10], search_field="ti")
-
-    results = BEALSCrossref(query1).run_beals()
+    results = BEALSCrossref(search_query).run_beals()
 
     print(len(results))
 
-    for rec in results[:20]:
+    for rec in results[:10]:
         print(f"\nDOI: {rec.data.get("doi")}\nTitle: {rec.data.get('title')}\n")
 
     counter_1 = 0
     all_recs_selected = True
     for rec in results:
-        rec = rec.data
-        if not query1.selects(record_dict=rec):
+        if not search_query.selects(record_dict=rec.data):
             all_recs_selected = False
             print(f"\nDOI: {rec.data.get("doi")}\nTitle: {rec.data.get('title')}\n")
             counter_1 = counter_1 + 1
-    
+
     if all_recs_selected:
         print("All records fit to query")
     else:
-        print("Not all records fit to query: {counter_1} false")
-        
+        print(f"Not all records fit to query: {counter_1} false")
