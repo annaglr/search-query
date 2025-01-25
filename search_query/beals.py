@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import datetime
 import logging
-import typing
 import re
+import typing
 
 from colrev.packages.crossref.src import crossref_api
 from colrev.record.record import Record
@@ -15,8 +15,10 @@ from search_query import OrQuery
 from search_query.query import Query
 from search_query.query import SearchField
 
-
 # pylint: disable=too-many-instance-attributes
+# pylint: disable=line-too-long
+
+
 class BEALSCrossref:
     """
     BEALS prototype for Crossref
@@ -132,17 +134,13 @@ class BEALSCrossref:
                 for child in self.children:
                     child.calculate_path()
 
-                self.path_length = min(
-                    child.path_length for child in self.children
-                )
+                self.path_length = min(child.path_length for child in self.children)
 
             elif self.value == "OR":
                 for child in self.children:
                     child.calculate_path()
 
-                self.path_length = sum(
-                    child.path_length for child in self.children
-                )
+                self.path_length = sum(child.path_length for child in self.children)
 
             else:
                 # NotQuery is not implemented
@@ -167,9 +165,14 @@ class BEALSCrossref:
 
         for record in record_list:
             if record.data.get("title"):
-                if re.search(f"(^|[^a-zA-Z]){term.lower()}([^a-zA-Z]|$)", 
-                             record.data.get("title").lower(),
-                             re.IGNORECASE) is not None:
+                if (
+                    re.search(
+                        f"(^|[^a-zA-Z]){term.lower()}([^a-zA-Z]|$)",
+                        record.data.get("title").lower(),
+                        re.IGNORECASE,
+                    )
+                    is not None
+                ):
                     rec_list.append(record)
 
         return rec_list
@@ -235,27 +238,107 @@ class BEALSCrossref:
         self.records = list(no_dup.values())
 
 
+# pylint: disable=invalid-name
 if __name__ == "__main__":
-    search_term1 = OrQuery(["strategy", "strategic"], search_field="ti")
-    search_term2 = OrQuery(["digital", "technology"], search_field="ti")
-    search_query = AndQuery([search_term1, search_term2], search_field="ti")
+    # Use Case 1
+    # (strategy OR strategic) AND (technology OR digital)
+    sub_search_query01 = OrQuery(["strategy", "strategic"], search_field="ti")
+    sub_search_query02 = OrQuery(["technology", "digital"], search_field="ti")
+    search_query_01 = AndQuery(
+        [sub_search_query01, sub_search_query02], search_field="ti"
+    )
 
-    results = BEALSCrossref(search_query).run_beals()
+    # Use Case 2
+    # (("knowledge work" OR "digital labor" OR "services") AND
+    # ("platform" OR "market" OR "outsourcing")) OR "microsourcing"
+    sub_search_query03 = OrQuery(
+        ["knowledge work", "digital labor", "services"], search_field="ti"
+    )
+    sub_search_query04 = OrQuery(
+        ["platform", "market", "outsourcing"], search_field="ti"
+    )
+    sub_search_query05 = AndQuery(
+        [sub_search_query03, sub_search_query04], search_field="ti"
+    )
+    search_query_02 = OrQuery([sub_search_query05, "microsourcing"], search_field="ti")
 
-    print(len(results))
+    # Use Case 3
+    # (“Artificial Intelligence” OR “substitution” OR “augmentation” OR “assemblage”) AND
+    # (“ethics” OR “transparency” OR “accountability” OR “privacy” OR “maleficence” OR
+    # “justice” OR “fairness” OR “beneficence” OR “sustainability” OR “responsibility” OR “autonomy”) AND
+    # (“management” OR “strategy” OR “corporate strategy” OR “business strategy” OR
+    # “functional strategy” OR “planning processes” OR “strategic processes” OR
+    # “tactical processes” OR “operational processes”)
+    sub_search_query06 = OrQuery(
+        ["Artificial Intelligence", "substitution", "augmentation", "assemblage"],
+        search_field="ti",
+    )
+    sub_search_query07 = OrQuery(
+        [
+            "ethics",
+            "transparency",
+            "accountability",
+            "privacy",
+            "maleficence",
+            "justice",
+            "fairness",
+            "beneficence",
+            "sustainability",
+            "responsibility",
+            "autonomy",
+        ],
+        search_field="ti",
+    )
+    sub_search_query08 = OrQuery(
+        [
+            "management",
+            "strategy",
+            "corporate strategy",
+            "business strategy",
+            "functional strategy",
+            "planning processes",
+            "strategic processes",
+            "tactical processes",
+            "operational processes",
+        ],
+        search_field="ti",
+    )
+    search_query_03 = AndQuery(
+        [sub_search_query06, sub_search_query07, sub_search_query08], search_field="ti"
+    )
 
-    for rec in results[:10]:
-        print(f"\nDOI: {rec.data.get("doi")}\nTitle: {rec.data.get('title')}\n")
+    # Use Case 4
+    # (("knowledge work" OR "digital labor" OR "services") AND
+    # (("platform" AND "market") OR "outsourcing")) OR "microsourcing"
+    sub_search_query09 = OrQuery(
+        ["knowledge work", "digital labor", "services"], search_field="ti"
+    )
+    sub_search_query10 = AndQuery(["platform", "market"], search_field="ti")
+    sub_search_query11 = OrQuery([sub_search_query10, "outsourcing"], search_field="ti")
+    sub_search_query12 = AndQuery(
+        [sub_search_query09, sub_search_query11], search_field="ti"
+    )
+    search_query_04 = OrQuery([sub_search_query12, "microsourcing"], search_field="ti")
 
-    counter_1 = 0
+    beals = BEALSCrossref(search_query_01)
+    beals.logger.info("Start BEALS")
+    results = beals.run_beals()
+    beals.logger.info("Finished. All records retrieved.")
+
+    print(f"Final number of results: {len(results)}")
+
+    for rec in results[:5]:
+        print(f"\nDOI: {rec.data.get('doi')}\nTitle: {rec.data.get('title')}\n")
+
+    false_positives_counter = 0
     all_recs_selected = True
     for rec in results:
-        if not search_query.selects(record_dict=rec.data):
+        if not search_query_01.selects(record_dict=rec.data):
             all_recs_selected = False
-            print(f"\nDOI: {rec.data.get("doi")}\nTitle: {rec.data.get('title')}\n")
-            counter_1 = counter_1 + 1
+            print(f"\nDOI: {rec.data.get('doi')}\nTitle: {rec.data.get('title')}\n")
+            false_positives_counter = false_positives_counter + 1
 
     if all_recs_selected:
         print("All records fit to query")
     else:
-        print(f"Not all records fit to query: {counter_1} false")
+        print(f"Not all records fit to query: {false_positives_counter} false")
