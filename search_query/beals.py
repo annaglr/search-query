@@ -83,17 +83,6 @@ class BEALSCrossref:
 
         return url
 
-    def _combine_results_from_children(self) -> None:
-        """Combine the records from the children (OR operator)."""
-
-        child_records = {}
-        for child in self.children:
-            for record in child.records:
-                # DOI is used as identifier for the records
-                child_records[record.data.get("doi")] = record
-
-        self.records = list(child_records.values())
-
     def run_beals(self) -> typing.List[Record]:
         """Start BEALS."""
 
@@ -101,7 +90,6 @@ class BEALSCrossref:
         if not self.operator:
             # assign the results to self.records
             self.records = self.retrieve()
-            self._remove_duplicates()
 
         else:
             # recursive cases
@@ -117,7 +105,9 @@ class BEALSCrossref:
             elif self.value == "OR":
                 for child in self.children:
                     child.run_beals()
-                self._combine_results_from_children()
+
+                for child in self.children:
+                    self.records.extend(child.records)
             else:
                 # NotQuery is not implemented
                 raise ValueError("Operator is not yet supported.")
