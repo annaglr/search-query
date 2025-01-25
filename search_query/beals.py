@@ -139,13 +139,19 @@ class BEALSCrossref:
                 raise ValueError("AndQuery must have at least one child.")
 
             if self.value == "AND":
+                for child in self.children:
+                    child.calculate_path()
+
                 self.path_length = min(
-                    child.calculate_path().path_length for child in self.children
+                    child.path_length for child in self.children
                 )
 
             elif self.value == "OR":
+                for child in self.children:
+                    child.calculate_path()
+
                 self.path_length = sum(
-                    child.calculate_path().path_length for child in self.children
+                    child.path_length for child in self.children
                 )
 
             else:
