@@ -64,7 +64,7 @@ class BEALSCrossref:
         estimated_time_formatted = str(datetime.timedelta(seconds=int(estimated_time)))
         self.logger.info("Estimated time: %s", estimated_time_formatted)
         prep_records = list(self.api.get_records())
-        records = self._search_records(term=self.value, record_list=prep_records)
+        records = self._filter_records_by_term(term=self.value, record_list=prep_records)
         self.logger.info("Finished and retrieved %d records.", len(records))
 
         return records
@@ -156,7 +156,7 @@ class BEALSCrossref:
 
             return min_len_child
 
-    def _search_records(
+    def _filter_records_by_term(
         self, term: str, record_list: typing.List[Record]
     ) -> typing.List[Record]:
         """Searches the title of a record for the search term."""
@@ -194,7 +194,7 @@ class BEALSCrossref:
                 raise ValueError("Operator is not yet supported.")
 
         else:
-            self.records = self._search_records(self.value, parent_records)
+            self.records = self._filter_records_by_term(self.value, parent_records)
 
         return self.records
 
@@ -203,7 +203,7 @@ class BEALSCrossref:
 
         for c in self.children:
             if not c.operator:
-                records = self._search_records(c.value, records)
+                records = self._filter_records_by_term(c.value, records)
 
         for ch in self.children:
             if ch.operator:
@@ -216,7 +216,7 @@ class BEALSCrossref:
         child_records = []
         for c in self.children:
             if not c.operator:
-                child_records.extend(self._search_records(c.value, records))
+                child_records.extend(self._filter_records_by_term(c.value, records))
             else:
                 child_records.extend(c.filter_records(records))
 
@@ -320,6 +320,7 @@ if __name__ == "__main__":
     )
     search_query_04 = OrQuery([sub_search_query12, "microsourcing"], search_field="ti")
 
+    # Start BEALS
     beals = BEALSCrossref(search_query_01)
     beals.logger.info("Start BEALS")
     results = beals.run_beals()
