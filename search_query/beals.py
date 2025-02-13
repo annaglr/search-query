@@ -97,7 +97,7 @@ class BEALSCrossref:
             # recursive cases
             # call APIXY(x).run_beals() for x in children and combine the results
             if self.value == "AND":
-                next_child = self.calculate_path()
+                next_child = self.select_child_with_lowest_yield()
                 self.records = next_child.run_beals()
 
                 for c in self.children:
@@ -118,8 +118,8 @@ class BEALSCrossref:
         return self.records
 
     # pylint: disable=inconsistent-return-statements
-    def calculate_path(self) -> BEALSCrossref:
-        """Calculate shortest path for record retrieval."""
+    def select_child_with_lowest_yield(self) -> BEALSCrossref:
+        """Estimate lowest yield."""
 
         if not self.operator:
             self.api.params = {"url": self.build_url(self.value)}
@@ -132,13 +132,13 @@ class BEALSCrossref:
 
             if self.value == "AND":
                 for child in self.children:
-                    child.calculate_path()
+                    child.select_child_with_lowest_yield()
 
                 self.path_length = min(child.path_length for child in self.children)
 
             elif self.value == "OR":
                 for child in self.children:
-                    child.calculate_path()
+                    child.select_child_with_lowest_yield()
 
                 self.path_length = sum(child.path_length for child in self.children)
 
@@ -159,7 +159,7 @@ class BEALSCrossref:
     def _filter_records_by_term(
         self, term: str, record_list: typing.List[Record]
     ) -> typing.List[Record]:
-        """Searches the title of a record for the search term."""
+        """Searches the title of a record for the exact search term."""
 
         rec_list = []
 
