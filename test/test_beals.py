@@ -149,8 +149,8 @@ class TestBEALSCrossref(unittest.TestCase):
             "URL was not built correctly!",
         )
 
-    def test_search_records(self) -> None:
-        """Test search_records that filters records for a specific keyword."""
+    def test_filter_records_by_term(self) -> None:
+        """Test filter_records_by_term that filters records for a specific keyword."""
         beals = BEALSCrossref(self.example_query)
         records = [
             self.MockRecord(
@@ -202,7 +202,7 @@ class TestBEALSCrossref(unittest.TestCase):
             ),
         ]
 
-        filtered_records = beals._search_records(term="big data", record_list=records)
+        filtered_records = beals._filter_records_by_term(term="big data", record_list=records)
         self.assertEqual(
             len(filtered_records), 4, "Number of returned records is not as expected!"
         )
