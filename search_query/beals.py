@@ -19,23 +19,20 @@ from search_query.query import SearchField
 # pylint: disable=line-too-long
 
 
-class BEALSCrossref:
+class BEALS:
     """
     BEALS prototype for Crossref
     """
 
-    _api_url = "https://api.crossref.org/"
-
-    def __init__(self, query: Query) -> None:
+    def __init__(self, query: Query, api) -> None:
+        self.api = api
         self.value: str = query.value
         self.operator: bool = query.operator
         self.search_field: typing.Optional[SearchField] = query.search_field
-        self.children: typing.List[BEALSCrossref] = [
-            BEALSCrossref(child) for child in query.children
+        self.children: typing.List[BEALS] = [
+            BEALS(child, api) for child in query.children
         ]
         self.records: typing.List[Record] = []
-
-        self.api = crossref_api.CrossrefAPI(params={})
 
         self.logger = logging.getLogger(__name__)
 
@@ -73,15 +70,15 @@ class BEALSCrossref:
         """Build query url."""
 
         query = query.replace(" ", "+")
-        url = self._api_url + "works?" + "query.title=%22" + query + "%22"
+        url = "https://api.crossref.org/works?query.title=%22" + query + "%22"
 
         # Add time range filter
         # filter_date = "filter=from-pub-date:2015-01-01"
-        # url = self._api_url + "works?" + "query.title=%22" + query + "%22" + "&" + filter_date
+        # url = "https://api.crossref.org/works?query.title=%22" + query + "%22" + "&" + filter_date
 
         # Add journal filter
         # filter = "filter=issn:0167-9236,issn:0960-085X"
-        # url = self._api_url + "works?" + filter + "&" + "query.title=%22" + query + "%22"
+        # url = "https://api.crossref.org/works?" + filter + "&" + "query.title=%22" + query + "%22"
 
         return url
 
@@ -95,7 +92,7 @@ class BEALSCrossref:
 
         else:
             # recursive cases
-            # call APIXY(x).run_beals() for x in children and combine the results
+            # call run_beals() for children and combine the results
             if self.value == "AND":
                 next_child = self.select_child_with_lowest_yield()
                 self.records = next_child.run_beals()
@@ -111,14 +108,14 @@ class BEALSCrossref:
                 for child in self.children:
                     self.records.extend(child.records)
             else:
-                # NotQuery is not implemented
+                # Other operators are not supported yet
                 raise ValueError("Operator is not yet supported.")
 
         self._remove_duplicates()
         return self.records
 
     # pylint: disable=inconsistent-return-statements
-    def select_child_with_lowest_yield(self) -> BEALSCrossref:
+    def select_child_with_lowest_yield(self) -> BEALS:
         """Estimate lowest yield."""
 
         if not self.operator:
@@ -143,7 +140,7 @@ class BEALSCrossref:
                 self.path_length = sum(child.path_length for child in self.children)
 
             else:
-                # NotQuery is not implemented
+                # Other operators are not supported yet
                 raise ValueError("Operator is not yet supported.")
 
             min_len = self.children[0].path_length
@@ -190,7 +187,7 @@ class BEALSCrossref:
                 self.records = self._or_filter(parent_records)
 
             else:
-                # NotQuery is not implemented
+                # Other operators are not supported yet
                 raise ValueError("Operator is not yet supported.")
 
         else:
@@ -321,7 +318,8 @@ if __name__ == "__main__":
     search_query_04 = OrQuery([sub_search_query12, "microsourcing"], search_field="ti")
 
     # Start BEALS
-    beals = BEALSCrossref(search_query_01)
+    api_crossref = crossref_api.CrossrefAPI(params={})
+    beals = BEALS(search_query_01, api_crossref)
     beals.logger.info("Start BEALS")
     results = beals.run_beals()
     beals.logger.info("Finished. All records retrieved.")
