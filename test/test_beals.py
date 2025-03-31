@@ -3,8 +3,10 @@
 import typing
 import unittest
 
+from search_query import crossref_api
 from search_query.and_query import AndQuery
-from search_query.beals import BEALSCrossref
+from search_query.beals import BEALS
+from search_query.beals_api import BEALS_API
 from search_query.constants import Fields
 from search_query.or_query import OrQuery
 from search_query.query import Query
@@ -59,14 +61,23 @@ class TestBEALSCrossref(unittest.TestCase):
 
         self.MockSearchQuery = MockSearchQuery
 
-        class MockCrossrefAPI:
+        class MockCrossrefAPI(BEALS_API):
+            def __init__(self, params: dict, rerun: bool = False):
+                super().__init__(params=params, rerun=rerun)
+
+            @staticmethod
+            def build_url(query: str) -> str:
+                query = query.replace(" ", "+")
+                url = "https://api.crossref.org/works?query.title=%22" + query + "%22"
+                return url
+
             @staticmethod
             def get_len_total() -> int:
                 return 10
 
             @staticmethod
-            def check_availability() -> bool:
-                return True
+            def check_availability(raise_service_not_available: bool = True) -> None:
+                return None
 
             @staticmethod
             def get_records() -> typing.List[MockRecord]:
@@ -122,12 +133,13 @@ class TestBEALSCrossref(unittest.TestCase):
                     ),
                 ]
 
-        self.MockCrossrefAPI = MockCrossrefAPI
+        self.MockCrossrefAPI = MockCrossrefAPI(params={})
 
     def test_retrieve(self) -> None:
         """Test retrieval of records."""
-        beals = BEALSCrossref(self.MockSearchQuery(value="big data", operator=False))
-        beals.api = self.MockCrossrefAPI
+        beals = BEALS(
+            self.MockSearchQuery(value="big data", operator=False), self.MockCrossrefAPI
+        )
         records = beals.retrieve()
 
         self.assertEqual(len(records), 4)
@@ -140,9 +152,8 @@ class TestBEALSCrossref(unittest.TestCase):
     def test_build_url(self) -> None:
         """Test building the URL."""
         query = self.MockSearchQuery(value="Artificial Intelligence", operator=False)
-        beals = BEALSCrossref(query)
 
-        url = beals.build_url(query.value)
+        url = crossref_api.CrossrefAPI(params={}).build_url(query.value)
         self.assertEqual(
             url,
             "https://api.crossref.org/works?query.title=%22Artificial+Intelligence%22",
@@ -151,7 +162,7 @@ class TestBEALSCrossref(unittest.TestCase):
 
     def test_filter_records_by_term(self) -> None:
         """Test filter_records_by_term that filters records for a specific keyword."""
-        beals = BEALSCrossref(self.example_query)
+        beals = BEALS(self.example_query, self.MockCrossrefAPI)
         records = [
             self.MockRecord(
                 {"title": "The gardener and the tree", "doi": "10.5678/example"}
@@ -202,7 +213,9 @@ class TestBEALSCrossref(unittest.TestCase):
             ),
         ]
 
-        filtered_records = beals._filter_records_by_term(term="big data", record_list=records)
+        filtered_records = beals._filter_records_by_term(
+            term="big data", record_list=records
+        )
         self.assertEqual(
             len(filtered_records), 4, "Number of returned records is not as expected!"
         )
@@ -214,7 +227,7 @@ class TestBEALSCrossref(unittest.TestCase):
 
     def test_remove_duplicates(self) -> None:
         """Test remove_duplicates based on DOI and title."""
-        beals = BEALSCrossref(self.example_query)
+        beals = BEALS(self.example_query, self.MockCrossrefAPI)
         beals.records = [
             self.MockRecord(
                 {"title": "The gardener and the tree", "doi": "10.5678/example"}
@@ -268,31 +281,31 @@ class TestBEALSCrossref(unittest.TestCase):
         # Search string ("big data" OR "machine") AND (("analytics" AND "financial") OR "solutions"))
 
         query_10_term = self.MockSearchQuery(value="financial", operator=False)
-        beals_10_term = BEALSCrossref(query_10_term)
+        beals_10_term = BEALS(query_10_term, self.MockCrossrefAPI)
 
         query_9_and = self.MockSearchQuery(value="AND", operator=True)
-        beals_9_and = BEALSCrossref(query_9_and)
+        beals_9_and = BEALS(query_9_and, self.MockCrossrefAPI)
 
         query_8_term = self.MockSearchQuery(value="Big Data", operator=False)
-        beals_8_term = BEALSCrossref(query_8_term)
+        beals_8_term = BEALS(query_8_term, self.MockCrossrefAPI)
 
         query_7_term = self.MockSearchQuery(value="Machine", operator=False)
-        beals_7_term = BEALSCrossref(query_7_term)
+        beals_7_term = BEALS(query_7_term, self.MockCrossrefAPI)
 
         query_6_or = self.MockSearchQuery(value="OR", operator=True)
-        beals_6_or = BEALSCrossref(query_6_or)
+        beals_6_or = BEALS(query_6_or, self.MockCrossrefAPI)
 
         query_5_term = self.MockSearchQuery(value="solutions", operator=False)
-        beals_5_term = BEALSCrossref(query_5_term)
+        beals_5_term = BEALS(query_5_term, self.MockCrossrefAPI)
 
         query_4_term = self.MockSearchQuery(value="analytics", operator=False)
-        beals_4_term = BEALSCrossref(query_4_term)
+        beals_4_term = BEALS(query_4_term, self.MockCrossrefAPI)
 
         query_3_or = self.MockSearchQuery(value="OR", operator=True)
-        beals_3_or = BEALSCrossref(query_3_or)
+        beals_3_or = BEALS(query_3_or, self.MockCrossrefAPI)
 
         query_1_and = self.MockSearchQuery(value="AND", operator=True)
-        beals_1_and = BEALSCrossref(query_1_and)
+        beals_1_and = BEALS(query_1_and, self.MockCrossrefAPI)
 
         beals_1_and.records = [
             self.MockRecord(
