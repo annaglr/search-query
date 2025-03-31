@@ -7,11 +7,12 @@ import logging
 import re
 import typing
 
-from colrev.packages.crossref.src import crossref_api
 from colrev.record.record import Record
 
 from search_query import AndQuery
+from search_query import crossref_api
 from search_query import OrQuery
+from search_query.beals_api import BEALS_API
 from search_query.query import Query
 from search_query.query import SearchField
 
@@ -24,8 +25,8 @@ class BEALS:
     BEALS prototype for Crossref
     """
 
-    def __init__(self, query: Query, api) -> None:
-        self.api = api
+    def __init__(self, query: Query, api: BEALS_API) -> None:
+        self.api: BEALS_API = api
         self.value: str = query.value
         self.operator: bool = query.operator
         self.search_field: typing.Optional[SearchField] = query.search_field
@@ -47,7 +48,7 @@ class BEALS:
         """Retrieve results from the API."""
 
         # build query url
-        url = self.build_url(self.value)
+        url = self.api.build_url(self.value)
         self.api.params = {"url": url}
 
         num_res = self.api.get_len_total()
@@ -61,26 +62,12 @@ class BEALS:
         estimated_time_formatted = str(datetime.timedelta(seconds=int(estimated_time)))
         self.logger.info("Estimated time: %s", estimated_time_formatted)
         prep_records = list(self.api.get_records())
-        records = self._filter_records_by_term(term=self.value, record_list=prep_records)
+        records = self._filter_records_by_term(
+            term=self.value, record_list=prep_records
+        )
         self.logger.info("Finished and retrieved %d records.", len(records))
 
         return records
-
-    def build_url(self, query: str) -> str:
-        """Build query url."""
-
-        query = query.replace(" ", "+")
-        url = "https://api.crossref.org/works?query.title=%22" + query + "%22"
-
-        # Add time range filter
-        # filter_date = "filter=from-pub-date:2015-01-01"
-        # url = "https://api.crossref.org/works?query.title=%22" + query + "%22" + "&" + filter_date
-
-        # Add journal filter
-        # filter = "filter=issn:0167-9236,issn:0960-085X"
-        # url = "https://api.crossref.org/works?" + filter + "&" + "query.title=%22" + query + "%22"
-
-        return url
 
     def run_beals(self) -> typing.List[Record]:
         """Start BEALS."""
@@ -119,7 +106,7 @@ class BEALS:
         """Estimate lowest yield."""
 
         if not self.operator:
-            self.api.params = {"url": self.build_url(self.value)}
+            self.api.params = {"url": self.api.build_url(self.value)}
             self.path_length = self.api.get_len_total()
             return self
 
